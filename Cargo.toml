@@ -1,7 +1,10 @@
 [package]
 authors = ["Alastair Coote <rust@alastair.is>"]
+description = "A macro for use in testing, to run a test on multiple trait implementations"
 edition = "2018"
+license = "MIT"
 name = "test-impl"
+repository = "https://github.com/alastaircoote/test_impl"
 version = "0.1.0"
 
 [lib]
