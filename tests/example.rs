@@ -29,5 +29,5 @@ impl ExampleTrait for ExampleStruct2 {
 fn example_test() {
     println!("Going to test {:?}", ExampleTrait {});
     let bool_value = ExampleTrait::return_true();
-    assert_eq!(bool_value, true)
+    assert_eq!(bool_value, true);
 }

@@ -7,6 +7,10 @@ use proc_macro_error::proc_macro_error;
 use quote::quote;
 use syn::{parse_macro_input, AttributeArgs, ItemFn};
 
+/// Run this test multiple times, replacing all references to the trait specified with a specific implementation.
+/// Use it like this:
+///
+/// `#[test_impl(ExampleTrait(ExampleStruct, ExampleStruct2))]`
 #[proc_macro_attribute]
 #[proc_macro_error]
 pub fn test_impl(
