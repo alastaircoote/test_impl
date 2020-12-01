@@ -6,7 +6,7 @@
 
 An example of the macro in use:
 
-    #[test_impl(ExampleTrait(ExampleStruct, ExampleStruct2))]
+    #[test_impl(ExampleTrait = ExampleStruct, ExampleStruct2)]
     #[test]
     fn example_test() {
         let bool_value = ExampleTrait::return_true();
@@ -42,11 +42,11 @@ Why lay it out this way? Becuse it allows us to preserve line numbers in test ba
                 at /rustc/18bf6b4f01a6feaf7259ba7cdae58031af1b7b39/library/std/src/panicking.rs:475
       1: std::panicking::begin_panic_fmt
                 at /rustc/18bf6b4f01a6feaf7259ba7cdae58031af1b7b39/library/std/src/panicking.rs:429
-      2: example::example_test::ExampleStruct2
+      2: example::example_test::impl_ExampleStruct2
                 at ./tests/example.rs:32
       3: example::example_test
                 at ./tests/example.rs:27
       4: example::example_test::{{closure}}
                 at ./tests/example.rs:27
 
-The backtrace indicates that the panic occurred inside `example::example_test::ExampleStruct2`, telling us that it was `ExampleStruct2` causing the problem.
+The backtrace indicates that the panic occurred inside `example::example_test::impl_ExampleStruct2`, telling us that it was `ExampleStruct2` causing the problem.
