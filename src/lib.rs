@@ -1,69 +1,105 @@
-mod args;
-mod impl_block;
+mod macro_args;
 
-use args::parse_args;
-use impl_block::create_impl_blocks;
-use proc_macro_error::proc_macro_error;
+use macro_args::TraitAndImpls;
+use proc_macro2::TokenStream;
+use proc_macro_error::{emit_call_site_error, proc_macro_error};
+use quote::format_ident;
 use quote::quote;
-use syn::{parse_macro_input, AttributeArgs, ItemFn};
+use syn::ItemFn;
+
+/// Takes the original function and repeats it for each of the implementations provided. Example:
+/// ```
+/// #[test]
+/// fn do_test() {
+///     ExampleTrait::do_thing()
+/// }
+/// ```
+/// becomes:
+/// ```
+/// #[test]
+/// fn do_test() {
+///     fn impl_ExampleStruct() {
+///         type ExampleTrait = ExampleStruct;
+///         ExampleTrait::do_thing();
+///     }
+///     impl_ExampleStruct();
+///
+///     fn impl_ExampleStruct2() {
+///         type ExampleTrait = ExampleStruct2;
+///         ExampleTrait::do_thing();
+///     }
+///     impl_ExampleStruct2();
+/// }
+///
+fn repeat_function_with_mappings(func: &ItemFn, trait_and_impls: TraitAndImpls) -> TokenStream {
+    let impl_blocks: Vec<TokenStream> = trait_and_impls
+        .structs
+        .iter()
+        .map(|struc| {
+            let fn_ident = format_ident!("impl_{}", struc.ident);
+            let trait_ident = &trait_and_impls.base_trait.ident;
+            let trait_generics = &trait_and_impls.base_trait.generics;
+
+            let struct_ident = &struc.ident;
+            let struct_generics = &struc.generics;
+            let stmts = &func.block.stmts;
+
+            quote! {
+                fn #fn_ident() {
+                    type #trait_ident#trait_generics = #struct_ident#struct_generics;
+                    #(#stmts)*
+                }
+
+                #fn_ident();
+            }
+        })
+        .collect();
+
+    let attrs = &func.attrs;
+    let vis = &func.vis;
+    let sig = &func.sig;
+
+    quote! {
+        #(#attrs)*
+        #[allow(non_snake_case)]
+        #vis #sig
+        {
+            #(#impl_blocks)*
+        }
+    }
+}
 
 /// Run this test multiple times, replacing all references to the trait specified with a specific implementation.
 /// Use it like this:
 ///
-/// `#[test_impl(ExampleTrait(ExampleStruct, ExampleStruct2))]`
+/// `#[test_impl(ExampleTrait = ExampleStruct, ExampleStruct2)]`
 #[proc_macro_attribute]
 #[proc_macro_error]
 pub fn test_impl(
     args: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    // Parse the arguments parsed to our macro and extract the trait and impl info:
-    let args_parsed = parse_macro_input!(args as AttributeArgs);
-    let trait_and_impls = match parse_args(&args_parsed) {
-        // If we get None back it's because parse_args has failed and used emit_error.
-        // In this instance we just throw the input stream straight back out again
-        // as there's no further work to do here.
-        None => return input,
-        Some(t) => t,
-    };
-
-    // Now that we've successfully parsed the arguments, parse the actual function we've
-    // been passed.
-    let input_parsed = syn::parse::<ItemFn>(input).unwrap();
-
-    // Grab the ident of the function. We use this in the next two calls to ensure that
-    // the type checks we write have unique identifiers, by prepending the fn name to them.
-    let fn_ident = &input_parsed.sig.ident;
-
-    // Emit some code to check that the trait the user entered actually exists in this scope
-    let trait_check = trait_and_impls.get_trait_check(&fn_ident);
-
-    // Then emit some code to check that the structs we've been given really are implementations
-    // of the trait in question
-    let impl_checks = trait_and_impls.get_impl_checks(&fn_ident);
-
-    // Grab some info about the function because I'm not sure how to access it inside quote!
-    // otherwise (e.g. #input_parsed.sig doesn't work)
-    let attrs = &input_parsed.attrs;
-    let vis = &input_parsed.vis;
-    let sig = &input_parsed.sig;
-
-    // Take the original function body and copy it multiple times, making the necessary changes
-    // for it to test the implementation rather than the trait itself.
-    let impl_blocks = create_impl_blocks(&trait_and_impls, &input_parsed.block);
-
-    // Finally, reconstruct the whole thing, along with the type check code:
-    let output = quote! {
-        #trait_check
-        #(#impl_checks)*
-
-        #(#attrs)*
-        #vis #sig
-        {
-            #(#impl_blocks)*
+    let args = match syn::parse::<TraitAndImpls>(args) {
+        Ok(a) => a,
+        Err(e) => {
+            emit_call_site_error!("Could not parse macro arguments: {}", e);
+            return proc_macro::TokenStream::new();
         }
-
     };
 
-    output.into()
+    let fn_def = match syn::parse::<ItemFn>(input) {
+        Ok(f) => f,
+        Err(e) => {
+            emit_call_site_error!("You must use this macro with a function: {}", e);
+            return proc_macro::TokenStream::new();
+        }
+    };
+
+    let impl_checks = args.output_impl_checks(&fn_def.sig.ident);
+    let mapped = repeat_function_with_mappings(&fn_def, args);
+    (quote! {
+        #impl_checks
+        #mapped
+    })
+    .into()
 }

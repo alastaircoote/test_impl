@@ -5,7 +5,7 @@ edition = "2018"
 license = "MIT"
 name = "test-impl"
 repository = "https://github.com/alastaircoote/test_impl"
-version = "0.1.0"
+version = "0.2.0"
 
 [lib]
 proc-macro = true
