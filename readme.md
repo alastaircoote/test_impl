@@ -17,19 +17,19 @@ With the arguments provided here the macro will test both ExampleStruct and Exam
 
     #[test]
     fn example_test() {
-        fn ExampleStruct() {
+        fn impl_ExampleStruct() {
             type ExampleTrait = ExampleStruct;
             let bool_value = ExampleTrait::return_true();
             assert_eq!(bool_value, true)
         }
-        ExampleStruct();
+        impl_ExampleStruct();
 
-        fn ExampleStruct2() {
+        fn impl_ExampleStruct2() {
             type ExampleTrait = ExampleStruct2;
             let bool_value = ExampleTrait::return_true();
             assert_eq!(bool_value, true)
         }
-        ExampleStruct2();
+        impl_ExampleStruct2();
     }
 
 Why lay it out this way? Becuse it allows us to preserve line numbers in test backtraces while also being able to detect which implementation failed. For example, when one of those implementations returns false:
